@@ -69,9 +69,12 @@ useEffect(() => {
     if (!lastMessage) return;
     const msg = lastMessage as any;
     const logLine = describeMessage(msg, logFormatterState.current);
-    
-    // On n'écrit que si l'exercice est démarré via la ref
-    if (logLine && isStartedRef.current) appendToLog(`${logLine} (à ${Math.floor(getCurrentTime()/60)} min ${getCurrentTime()%60} sec)`);
+
+    if (logLine && isStartedRef.current) {
+      const logLines = Array.isArray(logLine) ? logLine : [logLine];
+      const timestamp = `(à ${Math.floor(getCurrentTime()/60)} min ${getCurrentTime()%60} sec)`;
+      logLines.forEach((line) => appendToLog(`${line} ${timestamp}`));
+    }
     
     if (msg.type === "sync_state") {
       setIsSynced(true);

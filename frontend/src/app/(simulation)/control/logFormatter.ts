@@ -70,7 +70,7 @@ const VITALS_THROTTLE_MS = 5000;
  * Renvoie une ligne de log lisible pour ce message, ou null si le message
  * ne doit pas apparaître dans le log (bruit technique, ou doublon filtré).
  */
-export function describeMessage(msg: AnyMsg, state: LogFormatterState): string | null {
+export function describeMessage(msg: AnyMsg, state: LogFormatterState): string | string[] | null {
   if (!msg || typeof msg.type !== "string") return null;
   if (NOISE_TYPES.has(msg.type)) return null;
 
@@ -134,7 +134,9 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
       if (msg.defibBpDotted !== undefined) changes.push(msg.defibBpDotted ? '💪💪💪 Tension (défib) non prise 💪💪💪' : '💪💪💪 Tension (défib) prise 💪💪💪');
 
       if (changes.length === 0) return null;
-      return `Affichage : ${changes.join(", ")}`;
+      // Chaque changement est renvoyé comme une entrée de log indépendante
+      // (au lieu d'une seule ligne groupant tous les changements).
+      return changes;
     }
 
     case "HRscope": {
