@@ -51,6 +51,42 @@ export function getStoredLogRecent(): string[] {
     }
 }
 
+/**
+ * Ajoute une annotation directement dans le log persistant, sans passer par
+ * le hook startLog() (utile pour une page qui n'a pas son propre état de
+ * log, comme la page d'annotation/consultation). Relit systématiquement le
+ * localStorage juste avant d'écrire, pour limiter le risque d'écraser des
+ * lignes ajoutées entretemps depuis un autre onglet (ex: control page).
+ */
+export function appendAnnotationToStoredLog(message: string): { log: string; recent: string[] } {
+    const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    const line = `[${time}] ${message}\n\n`;
+
+    let currentLog = getStoredLog();
+    if (!currentLog) {
+        const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
+        currentLog = `Log du ${dateStr} ${time} :\n-------------------\n`;
+    }
+    const newLog = currentLog + line;
+
+    const recent = getStoredLogRecent();
+    if (recent.length < 5) {
+        recent.reverse();
+        recent.push(line);
+        recent.reverse();
+    } else {
+        recent.pop();
+        recent.reverse();
+        recent.push(line);
+        recent.reverse();
+    }
+
+    writeStorageValue(LOG_STORAGE_KEY, newLog);
+    writeStorageValue(LOG_RECENT_STORAGE_KEY, JSON.stringify(recent));
+
+    return { log: newLog, recent };
+}
+
 export const startLog = () => {
 
     const logRef = useRef<string>("");
@@ -82,15 +118,26 @@ export const startLog = () => {
 
     const appendToLog = useCallback((message: string) => {
         const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        logRef.current += `[${time}] ${message}\n\n`;
+        const line = `[${time}] ${message}\n\n`;
+
+        // On repart systématiquement de la version la plus fraîche du
+        // localStorage (et pas de logRef.current, potentiellement obsolète)
+        // pour ne pas écraser une annotation ajoutée entretemps depuis une
+        // autre page/onglet (ex: la page /log).
+        const latestLog = readStorageValue(LOG_STORAGE_KEY);
+        if (latestLog !== null) logRef.current = latestLog;
+        const latestRecent = getStoredLogRecent();
+        if (readStorageValue(LOG_RECENT_STORAGE_KEY) !== null) lastMessageLog.current = latestRecent;
+
+        logRef.current += line;
         if (lastMessageLog.current.length < 5) {
             lastMessageLog.current.reverse();
-            lastMessageLog.current.push(`[${time}] ${message}\n\n`);
+            lastMessageLog.current.push(line);
             lastMessageLog.current.reverse();
         } else {            
             lastMessageLog.current.pop();
             lastMessageLog.current.reverse();
-            lastMessageLog.current.push(`[${time}] ${message}\n\n`);
+            lastMessageLog.current.push(line);
             lastMessageLog.current.reverse();
         }
         persist();
