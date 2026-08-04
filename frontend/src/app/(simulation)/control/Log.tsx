@@ -51,13 +51,6 @@ export function getStoredLogRecent(): string[] {
     }
 }
 
-/**
- * Ajoute une annotation directement dans le log persistant, sans passer par
- * le hook startLog() (utile pour une page qui n'a pas son propre état de
- * log, comme la page d'annotation/consultation). Relit systématiquement le
- * localStorage juste avant d'écrire, pour limiter le risque d'écraser des
- * lignes ajoutées entretemps depuis un autre onglet (ex: control page).
- */
 export function appendAnnotationToStoredLog(message: string): { log: string; recent: string[] } {
     const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     const line = `[${time}] ${message}\n\n`;
