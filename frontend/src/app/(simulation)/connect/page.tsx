@@ -158,6 +158,11 @@ export default function ConnectPage() {
             <p className="text-gray-400 text-sm">Diffusez les constantes d'un mannequin sur l'application</p>
           </div>
 
+          <div onClick={() => router.push(`/log?username=${sessionUser}`)} className="connect-card bg-[#1a1a1a] hover:bg-gray-800 p-6 border border-gray-700 hover:border-cyan-500 rounded-xl cursor-pointer transition-all flex flex-col justify-between group shadow-lg">
+            <h2 className="text-xl font-bold mb-2 group-hover:text-cyan-400 transition-colors">📝 Journal de séance</h2>
+            <p className="text-gray-400 text-sm">Consultez le log complet de la séance et ajoutez vos annotations.</p>
+          </div>
+
           {/* 6th Card: Partager la session (Triggers Radix Dialog Modal) */}
           <Dialog.Root open={isQrModalOpen} onOpenChange={setIsQrModalOpen}>
             <Dialog.Trigger asChild>
