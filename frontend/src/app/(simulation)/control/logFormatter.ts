@@ -123,20 +123,14 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
       }
     }
     case "visibility_state": {
-      const changes: string[] = [];
-      if (msg.hrDotted !== undefined) changes.push(msg.hrDotted ? ' 🫀🫀🫀 ECG débranché 🫀🫀🫀' : '🫀🫀🫀 ECG branché 🫀🫀🫀');
-      if (msg.pressureDotted !== undefined) changes.push(msg.pressureDotted ? '🫁🫁🫁Oxymètre débranché🫁🫁🫁' : '🫁🫁🫁Oxymètre branché🫁🫁🫁');
-      if (msg.co2Dotted !== undefined) changes.push(msg.co2Dotted ? '🫁🫁🫁 FRVA débranché 🫁🫁🫁' : '🫁🫁🫁 FRVA branché 🫁🫁🫁');
-      if (msg.bpDotted !== undefined) changes.push(msg.bpDotted ? '💪💪💪Tension non prise💪💪💪' : '💪💪💪Tension prise💪💪💪');
-      if (msg.defibHrDotted !== undefined) changes.push(msg.defibHrDotted ? '🫀🫀🫀 ECG (défib) débranché 🫀🫀🫀' : '🫀🫀🫀 ECG (défib) branché 🫀🫀🫀');
-      if (msg.defibPressureDotted !== undefined) changes.push(msg.defibPressureDotted ? '🫁🫁🫁 Oxymètre (défib) débranché 🫁🫁🫁' : '🫁🫁🫁 Oxymètre (défib) branché 🫁🫁🫁');
-      if (msg.defibCo2Dotted !== undefined) changes.push(msg.defibCo2Dotted ? '🫁🫁🫁 FRVA (défib) débranché 🫁🫁🫁' : '🫁🫁🫁 CO2 (défib) branché 🫁🫁🫁');
-      if (msg.defibBpDotted !== undefined) changes.push(msg.defibBpDotted ? '💪💪💪 Tension (défib) non prise 💪💪💪' : '💪💪💪 Tension (défib) prise 💪💪💪');
-
-      if (changes.length === 0) return null;
-      // Chaque changement est renvoyé comme une entrée de log indépendante
-      // (au lieu d'une seule ligne groupant tous les changements).
-      return changes;
+      if (msg.hrDotted !== undefined) return (msg.hrDotted ? ' 🫀🫀🫀 ECG débranché 🫀🫀🫀' : '🫀🫀🫀 ECG branché 🫀🫀🫀');
+      if (msg.pressureDotted !== undefined) return (msg.pressureDotted ? '🫁🫁🫁Oxymètre débranché🫁🫁🫁' : '🫁🫁🫁Oxymètre branché🫁🫁🫁');
+      if (msg.co2Dotted !== undefined) return (msg.co2Dotted ? '🫁🫁🫁 FRVA débranché 🫁🫁🫁' : '🫁🫁🫁 FRVA branché 🫁🫁🫁');
+      if (msg.bpDotted !== undefined) return (msg.bpDotted ? '💪💪💪Tension non prise💪💪💪' : '💪💪💪Tension prise💪💪💪');
+      if (msg.defibHrDotted !== undefined) return(msg.defibHrDotted ? '🫀🫀🫀 ECG (défib) débranché 🫀🫀🫀' : '🫀🫀🫀 ECG (défib) branché 🫀🫀🫀');
+      if (msg.defibPressureDotted !== undefined) return (msg.defibPressureDotted ? '🫁🫁🫁 Oxymètre (défib) débranché 🫁🫁🫁' : '🫁🫁🫁 Oxymètre (défib) branché 🫁🫁🫁');
+      if (msg.defibCo2Dotted !== undefined) return (msg.defibCo2Dotted ? '🫁🫁🫁 FRVA (défib) débranché 🫁🫁🫁' : '🫁🫁🫁 CO2 (défib) branché 🫁🫁🫁');
+      if (msg.defibBpDotted !== undefined)  return(msg.defibBpDotted ? '💪💪💪 Tension (défib) non prise 💪💪💪' : '💪💪💪 Tension (défib) prise 💪💪💪');
     }
 
     case "HRscope": {
