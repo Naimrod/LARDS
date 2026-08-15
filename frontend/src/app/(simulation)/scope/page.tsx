@@ -409,7 +409,7 @@ useEffect(() => {
             </div>
 
             <div className="scope-bottom-row">
-                <div className="flex flex-col items-center justify-center min-w-[140px] text-[#ff0000]">
+                <div className="flex flex-col items-center justify-center min-w-[140px] text-[#ec00ff]">
                     <h2 className="m-0 mb-[clamp(4px,1vh,10px)] text-[clamp(14px,2.5vh,22px)] font-bold uppercase tracking-wider">TA</h2>
                     <div className="flex gap-[clamp(8px,1.5vw,20px)] items-center justify-center">
                         <h2 className="scope-bounds">

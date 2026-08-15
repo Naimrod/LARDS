@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ControlPanel from "../../components/ControlPanel";
 import { useWebSocket } from "../../context/WebSocketContext";
 import { ShieldAlert, Radio, ArrowLeft } from "lucide-react";
@@ -12,6 +12,9 @@ import { describeMessage, createLogFormatterState } from "./logFormatter";
 export default function ControlPage() {
   const { activeDevices, sendMessage, sessionId, lastMessage, connectionRejected, rejectionMessage } = useWebSocket();
   const { appendToLog, downloadLogFile, resetLog, lastMessageLog, logRef} = startLog();
+  const appendToLogTagged = useCallback((message: string) => {
+    appendToLog(`[Télécommande] ${message}`);
+  }, [appendToLog]);
   const { startTimer, stopTimer, resetTimer, getCurrentTime } = useInternalTimer();
   const logFormatterState = useRef(createLogFormatterState());
 
@@ -544,7 +547,7 @@ useEffect(() => {
  const sendLogInput = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputLog !== ''){
-      appendToLog(inputLog)
+      appendToLogTagged(inputLog)
     }
    setInputLog('')
   }
