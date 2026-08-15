@@ -1,10 +1,6 @@
 import { useRef, useCallback } from "react";
 
-// Clés utilisées dans le localStorage pour que le log de séance survive
-// à un rechargement de page et reste accessible depuis n'importe quelle
-// autre page de l'app, y compris dans un autre onglet/fenêtre (le
-// localStorage est partagé entre tous les onglets du même navigateur,
-// contrairement au sessionStorage).
+
 export const LOG_STORAGE_KEY = "lards_log";
 export const LOG_RECENT_STORAGE_KEY = "lards_log_recent";
 
@@ -22,24 +18,14 @@ function writeStorageValue(key: string, value: string) {
     try {
         window.localStorage.setItem(key, value);
     } catch {
-        // localStorage indisponible (mode privé, quota, etc.) : on continue
-        // silencieusement, le log reste au moins disponible en mémoire.
     }
 }
 
-/**
- * Permet de lire le log de séance courant depuis n'importe quelle page,
- * sans passer par le hook startLog() (donc sans dépendre du composant
- * control/page.tsx). Renvoie une chaîne vide si aucun log n'existe encore.
- */
 export function getStoredLog(): string {
     return readStorageValue(LOG_STORAGE_KEY) ?? "";
 }
 
-/**
- * Idem pour les derniers messages (les mêmes que ceux affichés dans le
- * panneau "logDisplay" du control panel), sous forme de tableau de chaînes.
- */
+
 export function getStoredLogRecent(): string[] {
     const raw = readStorageValue(LOG_RECENT_STORAGE_KEY);
     if (!raw) return [''];
@@ -80,6 +66,57 @@ export function appendAnnotationToStoredLog(message: string): { log: string; rec
     return { log: newLog, recent };
 }
 
+const LOG_COLOR_RULES: Array<{ pattern: RegExp; color: string }> = [
+  { pattern: /⚡|choc délivré/i, color: "#f87171" },        // rouge : choc délivré
+  { pattern: /défibrillateur|charge|energie|énergie/i, color: "#fb923c" }, // orange : actions défibrillateur
+  { pattern: /branché|débranché|non prise|tension prise/i, color: "#facc15" }, // jaune : capteurs (dé)branchés
+  { pattern: /patient\s*:/i, color: "#38bdf8" },            // bleu : vitaux / rythme patient
+  { pattern: /débitmètre|aspiration/i, color: "#2dd4bf" },  // turquoise : débitmètre / aspiration
+  { pattern: /exercice démarré/i, color: "#4ade80" },       // vert : début d'exercice
+  { pattern: /^log du /i, color: "#71717a" },               // gris : en-tête du log
+];
+
+
+const LOG_DEFAULT_COLOR = "#4ade80"; // vert : annotation manuelle / texte libre
+
+function escapeHtml(str: string): string {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+function colorForLine(line: string): string {
+    for (const rule of LOG_COLOR_RULES) {
+        if (rule.pattern.test(line)) return rule.color;
+    }
+    return LOG_DEFAULT_COLOR;
+}
+
+
+export function buildColoredLogHtml(logText: string, title: string): string {
+    const lines = logText.split(/\n\n+/).map((l) => l.trim()).filter(Boolean);
+    const rows = lines
+        .map((line) => `<div style="color:${colorForLine(line)};">${escapeHtml(line)}</div>`)
+        .join("\n");
+
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>${escapeHtml(title)}</title>
+<style>
+  body { background:#0c0c0d; color:#e4e4e7; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; padding:24px; white-space:pre-wrap; line-height:1.6; font-size:13px; }
+  h1 { color:#e4e4e7; font-size:16px; font-weight:700; margin:0 0 16px 0; }
+</style>
+</head>
+<body>
+<h1>${escapeHtml(title)}</h1>
+${rows}
+</body>
+</html>`;
+}
+
 export const startLog = () => {
 
     const logRef = useRef<string>("");
@@ -91,9 +128,6 @@ export const startLog = () => {
         writeStorageValue(LOG_RECENT_STORAGE_KEY, JSON.stringify(lastMessageLog.current));
     }, []);
 
-    // Initialisation : on tente de reprendre un log déjà en localStorage
-    // (rechargement de page, navigation depuis une autre page) ; sinon on
-    // démarre un nouveau log, comme avant.
     if (!initialized.current) {
         initialized.current = true;
         const storedLog = readStorageValue(LOG_STORAGE_KEY);
@@ -113,10 +147,6 @@ export const startLog = () => {
         const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         const line = `[${time}] ${message}\n\n`;
 
-        // On repart systématiquement de la version la plus fraîche du
-        // localStorage (et pas de logRef.current, potentiellement obsolète)
-        // pour ne pas écraser une annotation ajoutée entretemps depuis une
-        // autre page/onglet (ex: la page /log).
         const latestLog = readStorageValue(LOG_STORAGE_KEY);
         if (latestLog !== null) logRef.current = latestLog;
         const latestRecent = getStoredLogRecent();
@@ -138,18 +168,25 @@ export const startLog = () => {
 
     const downloadLogFile = useCallback(() => {
 
-        const blob = new Blob([logRef.current], { type: "text/plain;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
         const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
         const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).replace("_", ":");
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `LOG du ${dateStr} à ${time}.txt`;
+        const baseName = `LOG du ${dateStr} à ${time}`;
 
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        const downloadBlob = (blob: Blob, filename: string) => {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
+        downloadBlob(new Blob([logRef.current], { type: "text/plain;charset=utf-8" }), `${baseName}.txt`);
+
+        const html = buildColoredLogHtml(logRef.current, baseName);
+        downloadBlob(new Blob([html], { type: "text/html;charset=utf-8" }), `${baseName}.html`);
     }, []);
 
     const resetLog = useCallback(() => {

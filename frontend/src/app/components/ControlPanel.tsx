@@ -498,6 +498,13 @@ function DeviceBox({ deviceId, type, sessionId, sendMessage, globalProps, lastMe
 
     const payload: any = { type: "visibility_state", target_device: deviceId, session_id: sessionId };
     const payload2: any = { type: "visibility_state", session_id: sessionId };
+    const SENSOR_TO_FIELD: Record<typeof sensor, string> = {
+      ecg: type === "Défib" ? "defibHrDotted" : "hrDotted",
+      spo2: type === "Défib" ? "defibPressureDotted" : "pressureDotted",
+      co2: type === "Défib" ? "defibCo2Dotted" : "co2Dotted",
+      bp: type === "Défib" ? "defibBpDotted" : "bpDotted",
+    };
+    payload.changedField = SENSOR_TO_FIELD[sensor];
 
     if (type === "Défib") {
       payload2.target_device = 'defibrillator_CONTR';
@@ -754,7 +761,7 @@ export default function ControlPanel(props: ControlPanelProps) {
           </div>
         </div>
           
-        {/* --- COLONNE DE DROITE : PANNEAU DE CONTRÔLE GLOBAL (40%) --- */}
+        {/* --- COLONNE DE DROITE : PANNEAU DE CONTRÔLE GLOBAL --- */}
         <div className="w-full lg:w-[40%] flex flex-col p-4 min-w-0 h-full overflow-y-auto">
           
           <form onSubmit={props.sendLogInput} className="w-full shrink-0 mb-4">  

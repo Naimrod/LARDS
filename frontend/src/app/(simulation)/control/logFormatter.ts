@@ -1,6 +1,6 @@
 type AnyMsg = Record<string, any>;
 
-// Types de messages purement techniques : jamais utiles dans le log de séance
+
 const NOISE_TYPES = new Set(["time_sync", "device_list_update"]);
 
 const RHYTHM_LABELS: Record<string, string> = {
@@ -58,6 +58,7 @@ export interface LogFormatterState {
   lastEnergy?: number;
   lastRhythm?: string;
   lastVitalsLoggedAt?: number;
+  visibilityKnown?: Record<string, boolean>;
 }
 
 export function createLogFormatterState(): LogFormatterState {
@@ -66,10 +67,17 @@ export function createLogFormatterState(): LogFormatterState {
 
 const VITALS_THROTTLE_MS = 5000;
 
-/**
- * Renvoie une ligne de log lisible pour ce message, ou null si le message
- * ne doit pas apparaître dans le log (bruit technique, ou doublon filtré).
- */
+const VISIBILITY_FIELDS: Array<[string, string, string]> = [
+  ["hrDotted", "🫀🫀🫀 ECG débranché 🫀🫀🫀", "🫀🫀🫀 ECG branché 🫀🫀🫀"],
+  ["pressureDotted", "🫁🫁🫁Oxymètre débranché🫁🫁🫁", "🫁🫁🫁Oxymètre branché🫁🫁🫁"],
+  ["co2Dotted", "🫁🫁🫁 FRVA débranché 🫁🫁🫁", "🫁🫁🫁 FRVA branché 🫁🫁🫁"],
+  ["bpDotted", "💪💪💪Tension non prise💪💪💪", "💪💪💪Tension prise💪💪💪"],
+  ["defibHrDotted", "🫀🫀🫀 ECG (défib) débranché 🫀🫀🫀", "🫀🫀🫀 ECG (défib) branché 🫀🫀🫀"],
+  ["defibPressureDotted", "🫁🫁🫁 Oxymètre (défib) débranché 🫁🫁🫁", "🫁🫁🫁 Oxymètre (défib) branché 🫁🫁🫁"],
+  ["defibCo2Dotted", "🫁🫁🫁 FRVA (défib) débranché 🫁🫁🫁", "🫁🫁🫁 CO2 (défib) branché 🫁🫁🫁"],
+  ["defibBpDotted", "💪💪💪 Tension (défib) non prise 💪💪💪", "💪💪💪 Tension (défib) prise 💪💪💪"],
+];
+
 export function describeMessage(msg: AnyMsg, state: LogFormatterState): string | string[] | null {
   if (!msg || typeof msg.type !== "string") return null;
   if (NOISE_TYPES.has(msg.type)) return null;
@@ -96,12 +104,6 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
     }
 
     case "defibrillator_action": {
-      // "target_device" identifie l'appareil quand la commande part du
-      // control panel VERS un défibrillateur (ex: set_display_mode).
-      // "source_device" identifie l'appareil quand c'est le défibrillateur
-      // lui-même qui émet l'événement (boot_start, set_energy, start_charge,
-      // chargeCompleted, shock_delivered...) — la grande majorité des
-      // actions défib réelles passent par ce second champ.
       const id = msg.target_device ?? msg.source_device;
       const shorten = id ? (id.split('_')[1] || id) : undefined;
       const label = shorten ? `Défibrillateur ${shorten}` : `Défibrillateur`;
@@ -117,26 +119,39 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
         case "chargeCompleted":
           return `${label}: charge complète (${state.lastEnergy ?? "?"} J) — prêt à choquer`;
         case "shock_delivered":
+          if (!id) return null;
           return `⚡⚡⚡ Choc délivré (${state.lastEnergy ?? "?"} J) par ${label} ⚡⚡⚡`;
         default:
           return `${label} : ${msg.action}`;
       }
     }
     case "visibility_state": {
-      const changes: string[] = [];
-      if (msg.hrDotted !== undefined) changes.push(msg.hrDotted ? ' 🫀🫀🫀 ECG débranché 🫀🫀🫀' : '🫀🫀🫀 ECG branché 🫀🫀🫀');
-      if (msg.pressureDotted !== undefined) changes.push(msg.pressureDotted ? '🫁🫁🫁Oxymètre débranché🫁🫁🫁' : '🫁🫁🫁Oxymètre branché🫁🫁🫁');
-      if (msg.co2Dotted !== undefined) changes.push(msg.co2Dotted ? '🫁🫁🫁 FRVA débranché 🫁🫁🫁' : '🫁🫁🫁 FRVA branché 🫁🫁🫁');
-      if (msg.bpDotted !== undefined) changes.push(msg.bpDotted ? '💪💪💪Tension non prise💪💪💪' : '💪💪💪Tension prise💪💪💪');
-      if (msg.defibHrDotted !== undefined) changes.push(msg.defibHrDotted ? '🫀🫀🫀 ECG (défib) débranché 🫀🫀🫀' : '🫀🫀🫀 ECG (défib) branché 🫀🫀🫀');
-      if (msg.defibPressureDotted !== undefined) changes.push(msg.defibPressureDotted ? '🫁🫁🫁 Oxymètre (défib) débranché 🫁🫁🫁' : '🫁🫁🫁 Oxymètre (défib) branché 🫁🫁🫁');
-      if (msg.defibCo2Dotted !== undefined) changes.push(msg.defibCo2Dotted ? '🫁🫁🫁 FRVA (défib) débranché 🫁🫁🫁' : '🫁🫁🫁 CO2 (défib) branché 🫁🫁🫁');
-      if (msg.defibBpDotted !== undefined) changes.push(msg.defibBpDotted ? '💪💪💪 Tension (défib) non prise 💪💪💪' : '💪💪💪 Tension (défib) prise 💪💪💪');
+      if (typeof msg.target_device === "string" && msg.target_device.endsWith("_CONTR")) {
+        return null;
+      }
 
-      if (changes.length === 0) return null;
-      // Chaque changement est renvoyé comme une entrée de log indépendante
-      // (au lieu d'une seule ligne groupant tous les changements).
-      return changes;
+      if (!state.visibilityKnown) state.visibilityKnown = {};
+      const deviceKey = msg.target_device ?? msg.simuType ?? "default";
+      const changedField: string | undefined =
+        typeof msg.changedField === "string" ? msg.changedField : undefined;
+
+      const changes: string[] = [];
+      for (const [field, offLabel, onLabel] of VISIBILITY_FIELDS) {
+        if (msg[field] === undefined) continue;
+        const key = `${deviceKey}:${field}`;
+        const prevVal = state.visibilityKnown[key];
+        const newVal = !!msg[field];
+        state.visibilityKnown[key] = newVal;
+
+        if (changedField !== undefined) {
+          if (field === changedField) changes.push(newVal ? offLabel : onLabel);
+          continue;
+        }
+        if (prevVal === undefined || prevVal === newVal) continue;
+        changes.push(newVal ? offLabel : onLabel);
+      }
+
+      return changes.length > 0 ? changes : null;
     }
 
     case "HRscope": {
@@ -179,9 +194,6 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
       const now = Date.now();
       const timeElapsed = !state.lastVitalsLoggedAt || now - state.lastVitalsLoggedAt >= VITALS_THROTTLE_MS;
 
-      // On journalise systématiquement le premier point et tout changement
-      // de rythme ; sinon on limite à un point vitaux toutes les 5 secondes
-      // pour ne pas noyer le log pendant les rampes de récupération simulées.
       if (!firstEntry && !rhythmChanged && !timeElapsed) {
         return null;
       }
@@ -214,8 +226,6 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
       return `🧪 ${label} : ${msg.flow ?? 0} mbar`;
     }
 
-    // ecg / co2 / pressure / respiration / *scope / display_mode : ce sont
-    // des mises à jour de capteur individuelles déjà résumées par sync_state.
     default:
       return null;
   }
