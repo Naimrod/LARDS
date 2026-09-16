@@ -121,6 +121,8 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
         case "shock_delivered":
           if (!id) return null;
           return `⚡⚡⚡ Choc délivré (${state.lastEnergy ?? "?"} J) par ${label} ⚡⚡⚡`;
+        case "set_display_mode":
+          return null;
         default:
           return `${label} : ${msg.action}`;
       }
@@ -207,7 +209,7 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
       const label = msg.name ? `Débitmètre ${msg.name}` : "Débitmètre";
       const flowVal = msg.flow ?? 0;
       if (flowVal === 0) {
-        return `💨 ${label} : coupé (0 L/min)`;
+        return `💨 ${label} : coupé (0 L/min)`;        
       }
       return `💨 ${label} : réglé à ${flowVal} L/min`;
     }

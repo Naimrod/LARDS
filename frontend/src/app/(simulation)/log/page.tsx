@@ -170,9 +170,9 @@ export default function LogPage() {
           onScroll={handleScroll}
           className="flex-1 w-full bg-[#0c0c0d] border border-zinc-800 rounded-lg p-3 overflow-y-auto text-xs font-mono text-zinc-200 whitespace-pre-wrap leading-relaxed"
         >
-          {fullLog || "Le log est vide pour l'instant."}
+          {fullLog}
         </pre>
-
+        
         <div className="w-full shrink-0">
           {pseudoLoaded && !pseudo ? (
             <form onSubmit={handleSetPseudo} className="w-full">
