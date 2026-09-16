@@ -206,16 +206,18 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
     }
 
     case "flowmeter_action": {
-      const label = msg.name ? `Débitmètre ${msg.name}` : "Débitmètre";
+    if (msg.name !== undefined) {
+      const label = `Débitmètre ${msg.name}`;
       const flowVal = msg.flow ?? 0;
       if (flowVal === 0) {
         return `💨 ${label} : coupé (0 L/min)`;        
       }
       return `💨 ${label} : réglé à ${flowVal} L/min`;
-    }
+    }}
 
     case "aspi_action": {
-      const label = msg.name ? `Aspiration (${msg.name})` : "Aspiration";
+    if (msg.name !== undefined){
+      const label =  `Aspiration (${msg.name})`;
       if (msg.action === "toggle_power") {
         if (msg.state === "OFF") {
           return `🧪 ${label} : éteinte`;
@@ -226,7 +228,7 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
         return `🧪 ${label} : vide réglé à ${msg.flow ?? 0} mbar`;
       }
       return `🧪 ${label} : ${msg.flow ?? 0} mbar`;
-    }
+    }}
 
     default:
       return null;
