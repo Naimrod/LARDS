@@ -127,7 +127,11 @@ export const useVitals = () => {
       });
     } else if (msg.type === "rhythm") {
       const canonicalRhythm = rhythmMap[msg.rhythm] || msg.rhythm;
-      setVitals(prev => ({ ...prev, rhythm: canonicalRhythm }));
+      setVitals(prev => ({ 
+          ...prev, 
+          rhythm: canonicalRhythm,
+          ...(msg.action === "shock_delivered" ? { shockTimestamp: Date.now() } : {})
+      }));
     } else if (msg.type === "co2") {
       setVitals(prev => ({ ...prev, co2: msg.co2 ?? prev.co2 }));
     } else if (msg.type === "pressure") {
@@ -213,8 +217,6 @@ export const useVitals = () => {
           const show_vitals = msg.show_vitals !== undefined ? msg.show_vitals : prev.isPressureDotted;
           return { ...prev, isPressureDotted: !show_vitals, isCO2Dotted: !show_vitals };
         });
-      } else if (msg.action === "shock_delivered" || msg.action == "shockDelivered") {
-          setVitals(prev => ({ ...prev, shockTimestamp: Date.now() }));
       } else if (msg.action === "set_display_mode") {
         if (msg.display_mode === "ARRET") {
           setVitals(prev => ({
@@ -282,7 +284,7 @@ export const useVitals = () => {
  useEffect(() => {
     const interval = setInterval(() => {
       setCosmeticVitals(prev => {
-        const pulselessRhythms = ["fibrillationVentriculaire", "asystole", "fv", "asysto", "arret","choc", "tachy_a", "tachycardieAtriale","tsv", "fib_a","fibrillationAtriale", "tv_1", "tachycardieVentriculaire","tv_2","tvType2"];
+        const pulselessRhythms = ["fibrillationVentriculaire", "asystole", "fv", "asysto", "arret","choc", "tv_1", "tachycardieVentriculaire","tv_2","tvType2"];
         const isPulsing = !pulselessRhythms.includes(vitals.rhythm) && vitals.bpm >0;
 
         const targetBpm = vitals.bpm;
@@ -368,7 +370,7 @@ export const useVitals = () => {
     window.location.href = "/connect";
   }, []);
 
-  const pulselessRhythms = ["fibrillationVentriculaire", "asystole", "fv", "asysto", "arret","choc", "tachy_a", "tachycardieAtriale","tsv", "fib_a","fibrillationAtriale", "tv_1", "tachycardieVentriculaire","tv_2","tvType2"];
+  const pulselessRhythms = ["fibrillationVentriculaire", "asystole", "fv", "asysto", "arret","choc", "tv_1", "tachycardieVentriculaire","tv_2","tvType2"];
   const hasPulse = !pulselessRhythms.includes(vitals.rhythm) && vitals.bpm > 0;
 
   let bpDisplay = "--/--";
