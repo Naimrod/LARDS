@@ -123,8 +123,8 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
           return `⚡⚡⚡ Choc délivré (${state.lastEnergy ?? "?"} J) par ${label} ⚡⚡⚡`;
         case "set_diplay_mode":
           return null
-        default:
-          return `${label} : ${msg.action}`;
+        //default:
+          //return `${label} : ${msg.action}`;
       }
     }
     case "visibility_state": {
