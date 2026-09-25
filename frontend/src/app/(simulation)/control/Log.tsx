@@ -7,7 +7,7 @@ export const LOG_RECENT_STORAGE_KEY = "lards_log_recent";
 function readStorageValue(key: string): string | null {
     if (typeof window === "undefined") return null;
     try {
-        return window.localStorage.getItem(key);
+        return window.sessionStorage.getItem(key);
     } catch {
         return null;
     }
@@ -16,7 +16,7 @@ function readStorageValue(key: string): string | null {
 function writeStorageValue(key: string, value: string) {
     if (typeof window === "undefined") return;
     try {
-        window.localStorage.setItem(key, value);
+        window.sessionStorage.setItem(key, value);
     } catch {
     }
 }

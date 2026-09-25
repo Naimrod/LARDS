@@ -121,10 +121,10 @@ export function describeMessage(msg: AnyMsg, state: LogFormatterState): string |
         case "shock_delivered":
           if (!id) return null;
           return `⚡⚡⚡ Choc délivré (${state.lastEnergy ?? "?"} J) par ${label} ⚡⚡⚡`;
-        case "set_display_mode":
-          return null;
-        default:
-          return `${label} : ${msg.action}`;
+        case "set_diplay_mode":
+          return null
+        //default:
+          //return `${label} : ${msg.action}`;
       }
     }
     case "visibility_state": {
