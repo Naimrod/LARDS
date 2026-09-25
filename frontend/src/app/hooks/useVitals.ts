@@ -232,7 +232,11 @@ export const useVitals = () => {
         }
       }
     }
-  }, [lastMessage]);
+  };
+
+  const unsubscribe = subscribeMessage(handleMessage);
+  return () => unsubscribe();
+}, [subscribeMessage]);
 
   const [cosmeticVitals, setCosmeticVitals] = useState({
     bpm: 70,

@@ -10,7 +10,7 @@ import { describeMessage, createLogFormatterState } from "./logFormatter";
 
 
 export default function ControlPage() {
-  const { activeDevices, sendMessage, sessionId, lastMessage, connectionRejected, rejectionMessage } = useWebSocket();
+  const { activeDevices, sendMessage, subscribeMessage, sessionId, lastMessage, connectionRejected, rejectionMessage } = useWebSocket();
   const { appendToLog, downloadLogFile, resetLog, lastMessageLog, logRef} = startLog();
   const appendToLogTagged = useCallback((message: string) => {
     appendToLog(`[Télécommande] ${message}`);
@@ -69,17 +69,17 @@ useEffect(() => {
 
   // --- Authoritative Sync Listener ---
   useEffect(() => {
-    if (!lastMessage) return;
-    const msg = lastMessage as any;
-    const logLine = describeMessage(msg, logFormatterState.current);
+    const handleMessage = (msg: any) => {
+      if (!msg) return;
+      const logLine = describeMessage(msg, logFormatterState.current);
 
-    if (logLine && isStartedRef.current) {
-      const logLines = Array.isArray(logLine) ? logLine : [logLine];
-      const timestamp = `(à ${Math.floor(getCurrentTime()/60)} min ${getCurrentTime()%60} sec)`;
-      logLines.forEach((line) => appendToLog(`${line} ${timestamp}`));
-    }
-    
-    if (msg.type === "sync_state") {
+      if (logLine && isStartedRef.current) {
+        const logLines = Array.isArray(logLine) ? logLine : [logLine];
+        const timestamp = `(à ${Math.floor(getCurrentTime()/60)} min ${getCurrentTime()%60} sec)`;
+        logLines.forEach((line) => appendToLog(`${line} ${timestamp}`));
+      }
+      
+      if (msg.type === "sync_state") {
       setIsSynced(true);
       const patient = msg.patient || {};
       const device = msg.device || {};
@@ -658,7 +658,7 @@ useEffect(() => {
       diastolic={diastolic}
       respiration={respiration}
       inputLog = {inputLog}
-      logDisplay = {logList}
+      logDisplay = {[...lastMessageLog.current].reverse()}
       setRhythm={(val) => { setRhythm(val); editLocks.current.rhythm = Date.now(); }}
       setRhythmLabel={setRhythmLabel}
       setBpm={(val) => { setBpm(val); editLocks.current.bpm = Date.now(); }}
