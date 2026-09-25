@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ControlPanel from "../../components/ControlPanel";
 import { useWebSocket } from "../../context/WebSocketContext";
 import { ShieldAlert, Radio, ArrowLeft } from "lucide-react";
@@ -10,8 +10,11 @@ import { describeMessage, createLogFormatterState } from "./logFormatter";
 
 
 export default function ControlPage() {
-  const { activeDevices, sendMessage, subscribeMessage, sessionId, lastMessage, connectionRejected, rejectionMessage } = useWebSocket();
-  const { appendToLog, downloadLogFile, resetLog, logList, logRef } = startLog();
+  const { activeDevices, sendMessage, sessionId, lastMessage, connectionRejected, rejectionMessage } = useWebSocket();
+  const { appendToLog, downloadLogFile, resetLog, lastMessageLog, logRef} = startLog();
+  const appendToLogTagged = useCallback((message: string) => {
+    appendToLog(`[Télécommande] ${message}`);
+  }, [appendToLog]);
   const { startTimer, stopTimer, resetTimer, getCurrentTime } = useInternalTimer();
   const logFormatterState = useRef(createLogFormatterState());
 
@@ -66,71 +69,75 @@ useEffect(() => {
 
   // --- Authoritative Sync Listener ---
   useEffect(() => {
-    const handleMessage = (msg: any) => {
-      if (!msg) return;
-      const logLine = describeMessage(msg, logFormatterState.current);
-      
-      // On n'écrit que si l'exercice est démarré via la ref
-      if (logLine && isStartedRef.current) appendToLog(`${logLine} (à ${Math.floor(getCurrentTime()/60)} min ${getCurrentTime()%60} sec)`);
-      
-      if (msg.type === "sync_state") {
-        setIsSynced(true);
-        const patient = msg.patient || {};
-        const device = msg.device || {};
-        if (patient.heartRate !== undefined) {
-          setBpm(prev => {
-            if (Date.now() - editLocks.current.bpm > 20000 || patient.heartRate === prev) {
-              if (patient.heartRate === prev) editLocks.current.bpm = 0; // Libère le verrou
-              return patient.heartRate;
-            }
-            return prev; // Ignore le serveur pendant l'animation
-          });
-        }
-        if (patient.spo2 !== undefined) {
-          setSpo2(prev => {
-            if (Date.now() - editLocks.current.spo2 > 20000 || patient.spo2 === prev) {
-              if (patient.spo2 === prev) editLocks.current.spo2 = 0;
-              return patient.spo2;
-            }
-            return prev;
-          });
-        }
-        if (patient.co2 !== undefined) {
-          setCo2(prev => {
-            if (Date.now() - editLocks.current.co2 > 20000 || patient.co2 === prev) {
-              if (patient.co2 === prev) editLocks.current.co2 = 0;
-              return patient.co2;
-            }
-            return prev;
-          });
-        }
-        if (patient.bloodPressure?.systolic !== undefined) {
-          setSystolic(prev => {
-            if (Date.now() - editLocks.current.systolic > 20000 || patient.bloodPressure.systolic === prev) {
-              if (patient.bloodPressure.systolic === prev) editLocks.current.systolic = 0;
-              return patient.bloodPressure.systolic;
-            }
-            return prev;
-          });
-        }
-        if (patient.bloodPressure?.diastolic !== undefined) {
-          setDiastolic(prev => {
-            if (Date.now() - editLocks.current.diastolic > 20000 || patient.bloodPressure.diastolic === prev) {
-              if (patient.bloodPressure.diastolic === prev) editLocks.current.diastolic = 0;
-              return patient.bloodPressure.diastolic;
-            }
-            return prev;
-          });
-        }
-        if (patient.respiratoryRate !== undefined) {
-          setRespiration(prev => {
-            if (Date.now() - editLocks.current.respiration > 20000 || patient.respiratoryRate === prev) {
-              if (patient.respiratoryRate === prev) editLocks.current.respiration = 0;
-              return patient.respiratoryRate;
-            }
-            return prev;
-          });
-        }
+    if (!lastMessage) return;
+    const msg = lastMessage as any;
+    const logLine = describeMessage(msg, logFormatterState.current);
+
+    if (logLine && isStartedRef.current) {
+      const logLines = Array.isArray(logLine) ? logLine : [logLine];
+      const timestamp = `(à ${Math.floor(getCurrentTime()/60)} min ${getCurrentTime()%60} sec)`;
+      logLines.forEach((line) => appendToLog(`${line} ${timestamp}`));
+    }
+    
+    if (msg.type === "sync_state") {
+      setIsSynced(true);
+      const patient = msg.patient || {};
+      const device = msg.device || {};
+      if (patient.heartRate !== undefined) {
+        setBpm(prev => {
+          if (Date.now() - editLocks.current.bpm > 20000 || patient.heartRate === prev) {
+            if (patient.heartRate === prev) editLocks.current.bpm = 0; // Libère le verrou
+            return patient.heartRate;
+          }
+          return prev; // Ignore le serveur pendant l'animation
+        });
+      }
+      if (patient.spo2 !== undefined) {
+        setSpo2(prev => {
+          if (Date.now() - editLocks.current.spo2 > 20000 || patient.spo2 === prev) {
+            if (patient.spo2 === prev) editLocks.current.spo2 = 0;
+            return patient.spo2;
+          }
+          return prev;
+        });
+      }
+      if (patient.co2 !== undefined) {
+        setCo2(prev => {
+          if (Date.now() - editLocks.current.co2 > 20000 || patient.co2 === prev) {
+            if (patient.co2 === prev) editLocks.current.co2 = 0;
+            return patient.co2;
+          }
+          return prev;
+        });
+      }
+      if (patient.bloodPressure?.systolic !== undefined) {
+        setSystolic(prev => {
+          if (Date.now() - editLocks.current.systolic > 20000 || patient.bloodPressure.systolic === prev) {
+            if (patient.bloodPressure.systolic === prev) editLocks.current.systolic = 0;
+            return patient.bloodPressure.systolic;
+          }
+          return prev;
+        });
+      }
+      if (patient.bloodPressure?.diastolic !== undefined) {
+        setDiastolic(prev => {
+          if (Date.now() - editLocks.current.diastolic > 20000 || patient.bloodPressure.diastolic === prev) {
+            if (patient.bloodPressure.diastolic === prev) editLocks.current.diastolic = 0;
+            return patient.bloodPressure.diastolic;
+          }
+          return prev;
+        });
+      }
+      if (patient.respiratoryRate !== undefined) {
+        setRespiration(prev => {
+          if (Date.now() - editLocks.current.respiration > 20000 || patient.respiratoryRate === prev) {
+            if (patient.respiratoryRate === prev) editLocks.current.respiration = 0;
+            return patient.respiratoryRate;
+          }
+          return prev;
+        });
+      }
+
 
         if (patient.rhythmType) {
           const canonicalRhythm = patient.rhythmType;
@@ -542,7 +549,7 @@ useEffect(() => {
  const sendLogInput = (e: React.FormEvent) => {
     e.preventDefault()
     if (inputLog !== ''){
-      appendToLog(inputLog)
+      appendToLogTagged(inputLog)
     }
    setInputLog('')
   }

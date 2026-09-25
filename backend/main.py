@@ -423,11 +423,10 @@ class ScenarioManager:
             # --- CAS DU CHOC ---
             if rhythm == "choc":
                 patient["rhythmType"] = "choc"
-                await self.manager.broadcast({"type": "rhythm", "rhythm": "choc"}, session_id)
-                
                 await self.manager.broadcast({
-                    "type": "defibrillator_action",
-                    "action": "shock_delivered"
+                "type": "rhythm", 
+                "rhythm": "choc",
+                "action": "shock_delivered"
                 }, session_id)
                 
                 import time
