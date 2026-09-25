@@ -168,7 +168,7 @@ export default function LogPage() {
         <pre
           ref={logViewRef}
           onScroll={handleScroll}
-          className="flex-1 w-full bg-[#0c0c0d] border border-zinc-800 rounded-lg p-3 overflow-y-auto text-xs font-mono text-zinc-200 whitespace-pre-wrap leading-relaxed"
+          className="flex-1 w-full bg-[#111111] border border-zinc-800 rounded-lg p-3 overflow-y-auto text-xs font-mono text-zinc-200 whitespace-pre-wrap leading-relaxed"
         >
           {fullLog}
         </pre>
