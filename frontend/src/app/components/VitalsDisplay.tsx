@@ -179,7 +179,7 @@ if (isPNIMeasuring) {
           </div>
           <div className="flex flex-row items-center gap-x-2">
             <div className={`text-4xl font-bold min-w-[60px] text-center -mt-2 ${isSpo2Alarm ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>
-              {["fibrillationVentriculaire", "asystole","choc","tachycardieAtriale","tsv", "fibrillationAtriale", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
+              {["fibrillationVentriculaire", "asystole","choc", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
                 ? '--'
                 : (showSpo2 ? cosmeticSpo2 : '--')}
             </div>
@@ -195,7 +195,7 @@ if (isPNIMeasuring) {
           <div className="flex flex-col items-center">
             <div className="text-blue-400 text-xs">Pouls</div>
             <div className="text-blue-400 text-4xl font-bold min-w-[60px] text-center">
-              {["fibrillationVentriculaire", "asystole","choc","tachycardieAtriale","tsv", "fibrillationAtriale", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
+              {["fibrillationVentriculaire", "asystole","choc", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
                 ? '--'
                 : (showSpo2 ? cosmeticPulse : '--')}
             </div>
@@ -239,7 +239,7 @@ if (isPNIMeasuring) {
           
           
           <div className="text-white text-4xl min-w-[100px] text-center">
-            {["fibrillationVentriculaire", "asystole","choc","tachycardieAtriale","tsv", "fibrillationAtriale", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
+            {["fibrillationVentriculaire", "asystole","choc", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
             ? '-?-' 
             : isPNIMeasuring 
             ? (showCountdown ? pniStepValue : '--') 
@@ -249,7 +249,7 @@ if (isPNIMeasuring) {
           </div>
 
           <div className="text-white text-xs min-w-[30px] text-center">
-            {["fibrillationVentriculaire", "asystole","choc","tachycardieAtriale","tsv", "fibrillationAtriale", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
+            {["fibrillationVentriculaire", "asystole","choc", "tachycardieVentriculaire","tvType2"].includes(rhythmType)
             ? '' 
             : isPNIMeasuring 
             ? `(${pniStepValue})` // Décompte
@@ -275,7 +275,7 @@ if (isPNIMeasuring) {
           </div>
           <div className="flex flex-row items-center">
             <div className="text-yellow-400 text-4xl font-bold min-w-[50px] text-center">
-              {["fibrillationVentriculaire", "asystole","choc","tachycardieAtriale","tsv", "fibrillationAtriale", "tachycardieVentriculaire","tvType2"].includes(rhythmType) ? '-?-' : (showCo2 ? cosmeticCo2 : '--')}
+              {["fibrillationVentriculaire", "asystole","choc", "tachycardieVentriculaire","tvType2"].includes(rhythmType) ? '-?-' : (showCo2 ? cosmeticCo2 : '--')}
             </div>
           </div>
         </div>
@@ -286,7 +286,7 @@ if (isPNIMeasuring) {
           </div>
           <div className="flex flex-row items-center">
             <div className="text-yellow-400 text-4xl font-bold min-w-[50px] text-center">
-              {["fibrillationVentriculaire", "asystole","choc","tachycardieAtriale","tsv", "fibrillationAtriale", "tachycardieVentriculaire","tvType2"].includes(rhythmType) ? '-?-' : (showCo2 ? cosmeticResp : '--')}
+              {["fibrillationVentriculaire", "asystole","choc", "tachycardieVentriculaire","tvType2"].includes(rhythmType) ? '-?-' : (showCo2 ? cosmeticResp : '--')}
             </div>
           </div>
         </div>
