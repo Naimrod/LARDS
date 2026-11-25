@@ -1,69 +1,82 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect, useReducer } from "react";
+import { useWebSocket } from "../../context/WebSocketContext";
 
 
-export const LOG_STORAGE_KEY = "lards_log";
-export const LOG_RECENT_STORAGE_KEY = "lards_log_recent";
-
-function readStorageValue(key: string): string | null {
-    if (typeof window === "undefined") return null;
-    try {
-        return window.sessionStorage.getItem(key);
-    } catch {
-        return null;
-    }
-}
-
-function writeStorageValue(key: string, value: string) {
-    if (typeof window === "undefined") return;
-    try {
-        window.sessionStorage.setItem(key, value);
-    } catch {
-    }
-}
-
-export function getStoredLog(): string {
-    return readStorageValue(LOG_STORAGE_KEY) ?? "";
-}
-
-
-export function getStoredLogRecent(): string[] {
-    const raw = readStorageValue(LOG_RECENT_STORAGE_KEY);
-    if (!raw) return [''];
-    try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [''];
-    } catch {
-        return [''];
-    }
-}
-
-export function appendAnnotationToStoredLog(message: string): { log: string; recent: string[] } {
+function formatLogHeader(): string {
+    const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
     const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const line = `[${time}] ${message}\n\n`;
+    return `Log du ${dateStr} ${time} :\n-------------------\n`;
+}
 
-    let currentLog = getStoredLog();
-    if (!currentLog) {
-        const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
-        currentLog = `Log du ${dateStr} ${time} :\n-------------------\n`;
-    }
-    const newLog = currentLog + line;
+export function formatLogLine(message: string): string {
+    const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return `[${time}] ${message}\n\n`;
+}
 
-    const recent = getStoredLogRecent();
-    if (recent.length < 5) {
-        recent.reverse();
-        recent.push(line);
-        recent.reverse();
-    } else {
-        recent.pop();
-        recent.reverse();
-        recent.push(line);
-        recent.reverse();
-    }
+function pushRecent(recent: string[], line: string): string[] {
+    const kept = recent.length >= 5 ? recent.slice(0, 4) : recent.slice();
+    return [line, ...kept];
+}
 
-    writeStorageValue(LOG_STORAGE_KEY, newLog);
-    writeStorageValue(LOG_RECENT_STORAGE_KEY, JSON.stringify(recent));
+/**
+ * Hook bas niveau : synchronise le journal de séance avec le backend via le
+ * WebSocket partagé de la session (au lieu du sessionStorage local).
+ */
+export function useSyncedLog() {
+    const { sendMessage, lastMessage } = useWebSocket();
 
-    return { log: newLog, recent };
+    const logRef = useRef<string>("");
+    const lastMessageLog = useRef<string[]>([]);
+    // Les refs ci-dessus ne déclenchent pas de re-render à elles seules :
+    // ce petit compteur force le re-render des composants qui en ont besoin
+    // (typiquement la page /log) quand une mise à jour arrive du serveur.
+    const [, forceRender] = useReducer((c) => c + 1, 0);
+
+    useEffect(() => {
+        const msg = lastMessage as any;
+        if (!msg) return;
+        if (msg.type === "sync_state" || msg.type === "log_update") {
+            let changed = false;
+            if (typeof msg.log === "string" && msg.log !== logRef.current) {
+                logRef.current = msg.log;
+                changed = true;
+            }
+            if (Array.isArray(msg.log_recent)) {
+                lastMessageLog.current = msg.log_recent;
+                changed = true;
+            }
+            if (changed) forceRender();
+        }
+    }, [lastMessage]);
+
+    // Envoie une ligne déjà formatée (avec horodatage) au backend. Ajoute
+    // l'en-tête de séance si le log est actuellement vide (premier appareil
+    // à écrire dans la session).
+    const appendRawLine = useCallback((rawLine: string) => {
+        const toSend = logRef.current ? rawLine : formatLogHeader() + rawLine;
+
+        // Mise à jour optimiste locale : l'auteur voit sa ligne tout de
+        // suite, sans attendre l'aller-retour réseau. La valeur envoyée par
+        // le serveur (autoritaire) écrasera celle-ci à réception.
+        logRef.current += toSend;
+        lastMessageLog.current = pushRecent(lastMessageLog.current, rawLine);
+        forceRender();
+
+        sendMessage({ type: "log_append", line: toSend });
+    }, [sendMessage]);
+
+    const appendToLog = useCallback((message: string) => {
+        appendRawLine(formatLogLine(message));
+    }, [appendRawLine]);
+
+    const resetLog = useCallback(() => {
+        logRef.current = "";
+        lastMessageLog.current = [];
+        forceRender();
+        sendMessage({ type: "log_reset" });
+    }, [sendMessage]);
+
+    return { logRef, lastMessageLog, appendToLog, appendRawLine, resetLog };
 }
 
 const LOG_COLOR_RULES: Array<{ pattern: RegExp; color: string }> = [
@@ -119,52 +132,7 @@ ${rows}
 
 export const startLog = () => {
 
-    const logRef = useRef<string>("");
-    const lastMessageLog = useRef<string[]>(['']);
-    const initialized = useRef(false);
-
-    const persist = useCallback(() => {
-        writeStorageValue(LOG_STORAGE_KEY, logRef.current);
-        writeStorageValue(LOG_RECENT_STORAGE_KEY, JSON.stringify(lastMessageLog.current));
-    }, []);
-
-    if (!initialized.current) {
-        initialized.current = true;
-        const storedLog = readStorageValue(LOG_STORAGE_KEY);
-        if (storedLog) {
-            logRef.current = storedLog;
-            lastMessageLog.current = getStoredLogRecent();
-        } else {
-            const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
-            const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-            logRef.current = `Log du ${dateStr} ${time} :\n-------------------\n`;
-            lastMessageLog.current.push(`Log du ${dateStr} ${time} :\n-------------------\n`);
-            persist();
-        }
-    }
-
-    const appendToLog = useCallback((message: string) => {
-        const time = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        const line = `[${time}] ${message}\n\n`;
-
-        const latestLog = readStorageValue(LOG_STORAGE_KEY);
-        if (latestLog !== null) logRef.current = latestLog;
-        const latestRecent = getStoredLogRecent();
-        if (readStorageValue(LOG_RECENT_STORAGE_KEY) !== null) lastMessageLog.current = latestRecent;
-
-        logRef.current += line;
-        if (lastMessageLog.current.length < 5) {
-            lastMessageLog.current.reverse();
-            lastMessageLog.current.push(line);
-            lastMessageLog.current.reverse();
-        } else {            
-            lastMessageLog.current.pop();
-            lastMessageLog.current.reverse();
-            lastMessageLog.current.push(line);
-            lastMessageLog.current.reverse();
-        }
-        persist();
-    }, [persist]);
+    const { logRef, lastMessageLog, appendToLog, resetLog: resetSyncedLog } = useSyncedLog();
 
     const downloadLogFile = useCallback(() => {
 
@@ -190,13 +158,11 @@ export const startLog = () => {
     }, []);
 
     const resetLog = useCallback(() => {
-        const dateStr = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }).replace(".", "");
-        logRef.current = `Log du ${dateStr} :\n-------------------\n`;
-        while (lastMessageLog.current.length !== 0) {
-            lastMessageLog.current.pop()
-        }
-        lastMessageLog.current.push(`Log du ${dateStr} :\n-------------------\n`)
-        persist();
-    }, [persist])
-    return { appendToLog, downloadLogFile, resetLog, lastMessageLog, logRef};
+        // Réinitialise le log pour TOUTE la session (tous les appareils) :
+        // le backend repart d'un log vide et rediffuse "log_update" à tout
+        // le monde ; le prochain appendToLog recréera l'en-tête.
+        resetSyncedLog();
+    }, [resetSyncedLog]);
+
+    return { appendToLog, downloadLogFile, resetLog, lastMessageLog, logRef };
 }

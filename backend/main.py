@@ -101,6 +101,27 @@ class ScenarioManager:
                             dev_state[k] = existing_state[k]
         return state["device_states"][device_id]
 
+    def append_log_line(self, session_id: str, line: str) -> Dict[str, Any]:
+        """Ajoute une ligne au journal de séance, côté serveur.
+
+        Le serveur est désormais la source de vérité pour le contenu du log
+        (au lieu du sessionStorage du navigateur), afin que tous les
+        appareils connectés à la même session voient les mêmes entrées.
+        """
+        state = self.get_session_state(session_id)
+        state["log_full"] = state.get("log_full", "") + line
+
+        recent = state.get("log_recent") or []
+        recent = [line] + recent[:4]  # garde les 5 dernières lignes, la plus récente en premier
+        state["log_recent"] = recent
+
+        return {"log": state["log_full"], "recent": recent}
+
+    def reset_log(self, session_id: str) -> None:
+        state = self.get_session_state(session_id)
+        state["log_full"] = ""
+        state["log_recent"] = []
+
     def get_state_value(self, session_id: str, property_name: str, device_id: Optional[str] = None):
         state = self.get_session_state(session_id)
         mapped_prop = self.PROPERTY_MAPPING.get(property_name, property_name)
@@ -529,6 +550,11 @@ class ScenarioManager:
             "global_time": time.time(),
             "patient": patient,
             "device": device,
+            # Journal de séance : envoyé à TOUS les appareils (pas seulement
+            # control/dashboard) pour que la page /log reçoive elle aussi
+            # l'état courant dès la connexion.
+            "log": state.get("log_full", ""),
+            "log_recent": state.get("log_recent", []),
             "scenario": {
                 "scenario_id": scenario_id,
                 "title": scenario.get("title") if scenario else None,
@@ -864,6 +890,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     elif msg_type in ["HRscope", "Prscope", "COscope", "visibility_state"]:
                         # On prévient UNIQUEMENT les tablettes du formateur (control panel)
                         await manager.broadcast(data, session_id, target_device="control")
+                elif msg_type == "log_append":
+                    line = data.get("line") or ""
+                    if line:
+                        result = scenario_engine.append_log_line(session_id, line)
+                        await manager.broadcast({
+                            "type": "log_update",
+                            "log": result["log"],
+                            "log_recent": result["recent"],
+                        }, session_id)
+                elif msg_type == "log_reset":
+                    scenario_engine.reset_log(session_id)
+                    await manager.broadcast({
+                        "type": "log_update",
+                        "log": "",
+                        "log_recent": [],
+                    }, session_id)
                 elif msg_type == "demandlog":
                     await manager.broadcast(data, session_id)
                 elif msg_type == "simu_start":

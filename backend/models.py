@@ -49,6 +49,11 @@ class SessionState(BaseModel):
     patient_state: PatientState = Field(default_factory=PatientState)
     is_complete: bool = False
     show_hints: bool = False
+    # Journal de séance (log) : source de vérité côté serveur, partagée par
+    # tous les appareils connectés à la session (remplace le sessionStorage
+    # côté navigateur, qui n'était pas partagé entre appareils).
+    log_full: str = ""
+    log_recent: List[str] = Field(default_factory=list)
 
 
 class ScenarioStep(BaseModel):

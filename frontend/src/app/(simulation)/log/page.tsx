@@ -5,27 +5,23 @@ import { Download, RotateCcw, SendHorizonal } from "lucide-react";
 import PageHeader from "../../components/PageHeader";
 import { useWebSocket } from "../../context/WebSocketContext";
 import {
-  getStoredLog,
-  appendAnnotationToStoredLog,
+  useSyncedLog,
   buildColoredLogHtml,
-  LOG_STORAGE_KEY,
 } from "../control/Log";
 
-const POLL_INTERVAL_MS = 2000;
 const PSEUDO_STORAGE_KEY = "lards_log_pseudo";
 
 export default function LogPage() {
-  const { sessionId } = useWebSocket();
+  const { sessionId, sendMessage } = useWebSocket();
 
-  const [fullLog, setFullLog] = useState<string>("");
+ 
+  const { logRef, appendToLog } = useSyncedLog();
+  const fullLog = logRef.current;
+
   const [annotation, setAnnotation] = useState<string>("");
   const [justAdded, setJustAdded] = useState(false);
 
-  // Pseudo de la personne qui écrit sur cette page, pour identifier qui a
-  // ajouté quoi dans le log (les évènements automatiques et les
-  // annotations tapées depuis la page contrôle portent, eux, le tag fixe
-  // "[Télécommande]"). Mémorisé dans le navigateur pour ne pas avoir à le
-  // retaper à chaque visite.
+
   const [pseudo, setPseudo] = useState<string>("");
   const [pseudoInput, setPseudoInput] = useState<string>("");
   const [pseudoLoaded, setPseudoLoaded] = useState(false);
@@ -33,37 +29,23 @@ export default function LogPage() {
   const logViewRef = useRef<HTMLPreElement>(null);
   const shouldAutoScroll = useRef(true);
 
-  const refreshFromStorage = () => {
-    setFullLog(getStoredLog());
+  
+  const requestRefresh = () => {
+    sendMessage({ type: "request_sync" });
   };
 
-  // Chargement initial + écoute des changements venant d'autres onglets
+  
   useEffect(() => {
-    refreshFromStorage();
-
     try {
       const storedPseudo = window.localStorage.getItem(PSEUDO_STORAGE_KEY);
       if (storedPseudo) setPseudo(storedPseudo);
     } catch {
-      // localStorage indisponible : on demandera simplement le pseudo à chaque visite
+      
     }
     setPseudoLoaded(true);
-
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === LOG_STORAGE_KEY) refreshFromStorage();
-    };
-    window.addEventListener("storage", onStorage);
-
-    const interval = setInterval(refreshFromStorage, POLL_INTERVAL_MS);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      clearInterval(interval);
-    };
   }, []);
 
-  // Auto-scroll vers le bas quand le log grandit, sauf si l'utilisateur a
-  // remonté manuellement pour relire un passage.
+  
   useEffect(() => {
     const el = logViewRef.current;
     if (el && shouldAutoScroll.current) {
@@ -80,12 +62,11 @@ export default function LogPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pseudo) return; // sécurité : le formulaire est de toute façon désactivé sans pseudo
+    if (!pseudo) return; 
     const trimmed = annotation.trim();
     if (!trimmed) return;
 
-    const { log } = appendAnnotationToStoredLog(`[${pseudo}] ${trimmed}`);
-    setFullLog(log);
+    appendToLog(`[${pseudo}] ${trimmed}`);
     setAnnotation("");
     shouldAutoScroll.current = true;
 
@@ -101,7 +82,7 @@ export default function LogPage() {
     try {
       window.localStorage.setItem(PSEUDO_STORAGE_KEY, trimmed);
     } catch {
-      // localStorage indisponible : le pseudo restera valable pour cette page tant qu'elle reste ouverte
+      
     }
   };
 
@@ -128,10 +109,8 @@ export default function LogPage() {
       URL.revokeObjectURL(url);
     };
 
-    // .txt : toujours fourni, pour rester exploitable partout.
     downloadBlob(new Blob([fullLog], { type: "text/plain;charset=utf-8" }), `${baseName}.txt`);
 
-    // .html : version colorée (un .txt ne peut pas porter de couleur).
     const html = buildColoredLogHtml(fullLog, baseName);
     downloadBlob(new Blob([html], { type: "text/html;charset=utf-8" }), `${baseName}.html`);
   };
@@ -147,9 +126,9 @@ export default function LogPage() {
           </h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={refreshFromStorage}
+              onClick={requestRefresh}
               className="flex items-center gap-1.5 bg-[#1a1a1e] hover:bg-[#232327] text-zinc-300 border border-zinc-700/60 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-              title="Rafraîchir depuis le stockage local"
+              title="Redemander une synchronisation au serveur"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Rafraîchir
